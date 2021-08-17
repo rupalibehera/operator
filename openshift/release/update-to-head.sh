@@ -33,6 +33,13 @@ wget https://raw.githubusercontent.com/openshift/tektoncd-pipeline/release-next-
 git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata
 git commit -m ":open_file_folder: Update openshift specific files."
 
+if [[ -d openshift/patches ]];then
+    for f in openshift/patches/*.patch;do
+        [[ -f ${f} ]] || continue
+        git am ${f}
+    done
+fi
+
 git push -f ${OPENSHIFT_REMOTE} release-next
 
 # Trigger CI
