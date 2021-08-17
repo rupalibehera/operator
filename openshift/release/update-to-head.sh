@@ -7,8 +7,8 @@ set -ex
 REPO_NAME=`basename $(git remote get-url origin)`
 OPENSHIFT_REMOTE=${OPENSHIFT_REMOTE:-openshift}
 OPENSHIFT_ORG=${OPENSHIFT_ORG:-openshift}
-PIPELINE_VERSION=${PIPELINE_VERSION:-0.24.0}
-TRIGGERS_VERSION=${TRIGGERS_VERSION:-0.13.1}
+PIPELINE_VERSION=${PIPELINE_VERSION:-0.28.0}
+TRIGGERS_VERSION=${TRIGGERS_VERSION:-0.16.0}
 LABEL=nightly-ci
 # The below directory will contain nightly release yaml for pipelines and trigger
 PIPELINE_YAML_DIRECTORY=cmd/openshift/operator/kodata/tekton-pipeline/${PIPELINE_VERSION}-PreRelease
