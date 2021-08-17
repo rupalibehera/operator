@@ -23,3 +23,11 @@ make RELEASE=$release generate-release
 make RELEASE=ci generate-release
 git add openshift OWNERS_ALIASES OWNERS Makefile
 git commit -m "Add openshift specific files."
+
+# Apply patches if any
+if [[ -d openshift/patches ]];then
+    for f in openshift/patches/*.patch;do
+        [[ -f ${f} ]] || continue
+        git am ${f}
+    done
+fi
