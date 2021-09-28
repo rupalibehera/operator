@@ -47,6 +47,9 @@ spec:
               script: |
                 #!/usr/bin/env bash
                 set -xe
+
+                apk add make
+
                 # Configure git email and name
                 git config user.email "pipelines-dev@redhat.com"
                 git config user.name "OpenShift Pipelines"

@@ -4,15 +4,30 @@
 # Usage: update-to-head.sh
 
 set -ex
-REPO_NAME=`basename $(git remote get-url origin)`
 OPENSHIFT_REMOTE=${OPENSHIFT_REMOTE:-openshift}
-OPENSHIFT_ORG=${OPENSHIFT_ORG:-openshift}
-PIPELINE_VERSION=${PIPELINE_VERSION:-0.28.0}
-TRIGGERS_VERSION=${TRIGGERS_VERSION:-0.16.0}
+PIPELINE_VERSION=${PIPELINE_VERSION:-nightly}
+TRIGGERS_VERSION=${TRIGGERS_VERSION:-nightly}
+CATALOG_RELEASE_BRANCH=${CATALOG_RELEASE_BRANCH:-release-next}
+# RHOSP (Red Hat OpenShift Pipelines)
+RHOSP_VERSION=${RHOSP_VERSION:-$(date  +"%Y.%-m.%-d")-nightly}
+RHOSP_PREVIOUS_VERSION=${RHOSP_PREVIOUS_VERSION:-$(date  +"%Y.%-m.%-d" --date="yesterday")-nightly}
 LABEL=nightly-ci
-# The below directory will contain nightly release yaml for pipelines and trigger
-PIPELINE_YAML_DIRECTORY=cmd/openshift/operator/kodata/tekton-pipeline/${PIPELINE_VERSION}-PreRelease
-TRIGGERS_YAML_DIRECTORY=cmd/openshift/operator/kodata/tekton-trigger/${TRIGGERS_VERSION}-PreRelease
+
+function get_buildah_task() {
+# The fetch task script will not pull buildah task from github repository
+# as we have have made modifications in the buildah task in operator repository
+# This function will preserve the buildah task from the previous release (clusterTask payload)
+    buildah_dest_dir="cmd/openshift/operator/kodata/tekton-addon/${RHOSP_VERSION}/addons/02-clustertasks/buildah"
+    mkdir -p ${buildah_dest_dir} || true
+    task_path=${buildah_dest_dir}/buildah-task.yaml
+    version_suffix="${RHOSP_VERSION//./-}"
+    task_version_path=${buildah_dest_dir}/buildah-${version_suffix}-task.yaml
+
+    cp -r cmd/openshift/operator/kodata/tekton-addon/1.5.0/addons/02-clustertasks/buildah/buildah-task.yaml ${buildah_dest_dir}
+    sed \
+        -e "s|^\(\s\+name:\)\s\+\(buildah\)|\1 \2-$RHOSP_VERSION|g"  \
+        $task_path  > "$task_version_path"
+}
 
 # Reset release-next to upstream/main.
 git fetch upstream main
@@ -22,15 +37,27 @@ git checkout upstream/main --no-track -B release-next
 git fetch ${OPENSHIFT_REMOTE} master
 git checkout FETCH_HEAD openshift OWNERS_ALIASES OWNERS .tekton
 
-mkdir -p ${TRIGGERS_YAML_DIRECTORY}
-# Downloading triggers nightly release yaml
-wget https://raw.githubusercontent.com/openshift/tektoncd-triggers/release-next-ci/openshift/release/tektoncd-triggers-nightly.yaml -P ${TRIGGERS_YAML_DIRECTORY}
+# Add payload
+make get-releases TARGET='openshift' \
+                  PIPELINES=${PIPELINE_VERSION} \
+                  TRIGGERS=${TRIGGERS_VERSION}
 
-mkdir -p ${PIPELINE_YAML_DIRECTORY}
-# Downloading pipeline nightly release yaml
-wget https://raw.githubusercontent.com/openshift/tektoncd-pipeline/release-next-ci/openshift/release/tektoncd-pipeline-nightly.yaml -P ${PIPELINE_YAML_DIRECTORY}
+# handle buildah task separately
+get_buildah_task
+# pull tasks
+./hack/openshift/update-tasks.sh ${CATALOG_RELEASE_BRANCH} cmd/openshift/operator/kodata/tekton-addon/${RHOSP_VERSION} ${RHOSP_VERSION}
 
-git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata
+# generate csv
+BUNDLE_ARGS="--workspace operatorhub/openshift \
+             --operator-release-version ${RHOSP_VERSION} \
+             --channels stable,preview \
+             --default-channel stable \
+             --fetch-strategy-local \
+             --upgrade-strategy-replaces \
+             --operator-release-previous-version ${RHOSP_PREVIOUS_VERSION}"
+make operator-bundle
+
+git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata operatorhub/openshift
 git commit -m ":open_file_folder: Update openshift specific files."
 
 git push -f ${OPENSHIFT_REMOTE} release-next
