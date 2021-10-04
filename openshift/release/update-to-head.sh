@@ -11,6 +11,7 @@ CATALOG_RELEASE_BRANCH=${CATALOG_RELEASE_BRANCH:-release-next}
 # RHOSP (Red Hat OpenShift Pipelines)
 RHOSP_VERSION=${RHOSP_VERSION:-$(date  +"%Y.%-m.%-d")-nightly}
 RHOSP_PREVIOUS_VERSION=${RHOSP_PREVIOUS_VERSION:-$(date  +"%Y.%-m.%-d" --date="yesterday")-nightly}
+OLM_SKIP_RANGE=${OLM_SKIP_RANGE:-\'>=1.5.0 <1.6.0\'}
 LABEL=nightly-ci
 
 function get_buildah_task() {
@@ -54,7 +55,9 @@ BUNDLE_ARGS="--workspace operatorhub/openshift \
              --default-channel stable \
              --fetch-strategy-local \
              --upgrade-strategy-replaces \
-             --operator-release-previous-version ${RHOSP_PREVIOUS_VERSION}"
+             --operator-release-previous-version ${RHOSP_PREVIOUS_VERSION} \
+             --olm-skip-range ${OLM_SKIP_RANGE}"
+
 make operator-bundle
 
 git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata operatorhub/openshift
