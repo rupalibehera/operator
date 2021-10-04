@@ -10,7 +10,7 @@ TRIGGERS_VERSION=${TRIGGERS_VERSION:-nightly}
 CATALOG_RELEASE_BRANCH=${CATALOG_RELEASE_BRANCH:-release-next}
 # RHOSP (Red Hat OpenShift Pipelines)
 RHOSP_VERSION=${RHOSP_VERSION:-$(date  +"%Y.%-m.%-d")-nightly}
-RHOSP_PREVIOUS_VERSION=${RHOSP_PREVIOUS_VERSION:-$(date  +"%Y.%-m.%-d" --date="yesterday")-nightly}
+RHOSP_PREVIOUS_VERSION=${RHOSP_PREVIOUS_VERSION:-1.5.2}
 OLM_SKIP_RANGE=${OLM_SKIP_RANGE:-\'>=1.5.0 <1.6.0\'}
 LABEL=nightly-ci
 
