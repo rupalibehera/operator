@@ -48,7 +48,8 @@ spec:
                 #!/usr/bin/env bash
                 set -xe
 
-                apk add make
+                # TODO: oct 04, 2021 | NT: separate make steps and hub steps into separate tasks
+                apk add make || true # add this true or remove -x from this script
 
                 # Configure git email and name
                 git config user.email "pipelines-dev@redhat.com"
