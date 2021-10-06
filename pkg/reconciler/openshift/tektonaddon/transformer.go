@@ -18,6 +18,9 @@ package tektonaddon
 
 import (
 	"fmt"
+	console "github.com/openshift/api/console/v1"
+	routeclientv1 "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	mf "github.com/manifestival/manifestival"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -81,4 +84,51 @@ func itemInSlice(item string, items []string) bool {
 		}
 	}
 	return false
+}
+func getlinks(baseURL string) []interface{} {
+
+	platforms:= []struct{
+		label string
+		key string
+	}{
+		{"Linux for x86_64", "tkn/tkn-linux-amd64-0.19.1.tar.gz"},
+		{"Linux for IBM Power", "tkn/tkn-linux-ppc64le-0.19.1.tar.gz"},
+		{"Linux for IBM Z", "tkn/tkn-linux-s390x-0.19.1.tar.gz"},
+		{"Mac for x86_64", "tkn/tkn-macos-amd64-0.19.1.tar.gz"},
+		{"Windows for x86_64","tkn/tkn-windows-amd64-0.19.1.zip"},
+	}
+	var links []console.CLIDownloadLink{}
+	for _, platform := range platforms {
+		links = append(links, console.CLIDownloadLink{
+			Href: GetPlatformURL(baseURL, platform.key),
+			Text: fmt.Sprintf("Download tkn for %s", platform.label),
+		})
+	}
+	return links
+}
+
+func GetPlatformURL(baseURL string, platform string) string {
+	return fmt.Sprintf("%s/%s", baseURL, platform)
+}
+
+func ReplaceURLCCD() mf.Transformer {
+	return func(u *unstructured.Unstructured) error {
+		if u.GetKind() != "ConsoleCLIDownload" {
+			return nil
+		}
+		ccd := console.ConsoleCLIDownload{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, ccd)
+		if err != nil {
+			return err
+		}
+		links := ccd.Spec.Links
+		updatedLinks:=getlinks("http://")
+		replacelinks(links, updatedLinks)
+		unstrObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(links)
+		if err != nil {
+			return err
+		}
+		u.SetUnstructuredContent(unstrObj)
+		return nil
+	}
 }
