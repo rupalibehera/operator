@@ -51,6 +51,8 @@ spec:
                 # TODO: oct 04, 2021 | NT: separate make steps and hub steps into separate tasks
                 apk add make || true # add this true or remove -x from this script
                 apk add curl || true # add this true or remove -x from this script
+                apk add --no-cache python3 py3-pip || true
+                pip3 install yaml
 
                 # Configure git email and name
                 git config user.email "pipelines-dev@redhat.com"
@@ -62,6 +64,7 @@ spec:
                 git remote add openshift $(echo "https://github.com/openshift/tektoncd-operator.git"|sed "s,https://github.com/,https://${GITHUB_TOKEN}@github.com/,")
                 set -x
                 # Launch script
+                [ -d .bin ] || mkdir .bin
                 openshift/release/update-to-head.sh
   workspaces:
     - name: source
