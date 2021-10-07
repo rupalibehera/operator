@@ -52,7 +52,7 @@ spec:
                 apk add make || true # add this true or remove -x from this script
                 apk add curl || true # add this true or remove -x from this script
                 apk add --no-cache python3 py3-pip || true
-                pip3 install yaml
+                pip3 install pyyaml
 
                 # Configure git email and name
                 git config user.email "pipelines-dev@redhat.com"
