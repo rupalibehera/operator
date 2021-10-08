@@ -9,7 +9,8 @@ PIPELINE_VERSION=${PIPELINE_VERSION:-nightly}
 TRIGGERS_VERSION=${TRIGGERS_VERSION:-nightly}
 CATALOG_RELEASE_BRANCH=${CATALOG_RELEASE_BRANCH:-release-next}
 # RHOSP (Red Hat OpenShift Pipelines)
-RHOSP_VERSION=${RHOSP_VERSION:-$(date  +"%Y.%-m.%-d")-nightly}
+# RHOSP_VERSION=${RHOSP_VERSION:-$(date  +"%Y.%-m.%-d")-nightly}
+RHOSP_VERSION=${RHOSP_VERSION:-1.6.0} # we need to keep this constant for now as, we cannot push generated csv on a daily basis (NT)
 RHOSP_PREVIOUS_VERSION=${RHOSP_PREVIOUS_VERSION:-1.5.2}
 OLM_SKIP_RANGE=${OLM_SKIP_RANGE:-\'>=1.5.0 <1.6.0\'}
 LABEL=nightly-ci
@@ -30,6 +31,23 @@ function get_buildah_task() {
         $task_path  > "$task_version_path"
 }
 
+# copy all addon other than clustertasks into the nightly addon payload directory
+function copy_static_addon_resources() {
+  src_version=${1}
+  dest_version=${2}
+  src_dir="cmd/openshift/operator/kodata/tekton-addon/${src_version}"
+  dest_dir="cmd/openshift/operator/kodata/tekton-addon/${dest_version}"
+
+  cp -r ${src_dir}/optional ${dest_dir}/optional
+
+  addons_dir_src=${src_dir}/addons
+  addons_dir_dest=${dest_dir}/addons
+
+  for item in $(ls ${addons_dir_src} | grep -v 02-clustertasks); do
+    cp -r ${addons_dir_src}/${item} ${addons_dir_dest}/${item}
+  done
+}
+
 # Reset release-next to upstream/main.
 git fetch upstream main
 git checkout upstream/main --no-track -B release-next
@@ -47,6 +65,11 @@ make get-releases TARGET='openshift' \
 get_buildah_task
 # pull tasks
 ./hack/openshift/update-tasks.sh ${CATALOG_RELEASE_BRANCH} cmd/openshift/operator/kodata/tekton-addon/${RHOSP_VERSION} ${RHOSP_VERSION}
+
+# add all other addons resources (clustertriggerbindings, consoleclidownload ...)
+# from 1.5.0 dir (https://github.com/tektoncd/operator/tree/f2113b6092a4cb24ad2efd3c005fe97480070a00/cmd/openshift/operator/kodata/tekton-addon/1.5.0)
+# TODO: move all addons into tekton-addon witout the version subdirectory
+copy_static_addon_resources 1.5.0 ${RHOSP_VERSION}
 
 # generate csv
 BUNDLE_ARGS="--workspace operatorhub/openshift \
