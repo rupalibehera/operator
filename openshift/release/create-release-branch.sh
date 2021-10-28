@@ -47,6 +47,15 @@ function copy_static_addon_resources() {
   for item in $(ls ${addons_dir_src} | grep -v 02-clustertasks); do
     cp -r ${addons_dir_src}/${item} ${addons_dir_dest}/${item}
   done
+  # copy rbac for clustertasks
+  cp ${addons_dir_src}/02-clustertasks/*.yaml ${addons_dir_dest}/02-clustertasks/
+}
+
+function set_version_label() {
+  operator_version=v${1}
+  sed -i -e 's/\(operator.tekton.dev\/release\): "devel"/\1: '${operator_version}'/g' -e 's/\(app.kubernetes.io\/version\): "devel"/\1: '${operator_version}'/g' -e 's/\(version\): "devel"/\1: '${operator_version}'/g' -e 's/\("-version"\), "devel"/\1, '${operator_version}'/g' config/base/*.yaml
+  sed -i -e 's/\(operator.tekton.dev\/release\): "devel"/\1: '${operator_version}'/g' -e 's/\(app.kubernetes.io\/version\): "devel"/\1: '${operator_version}'/g' -e 's/\(version\): "devel"/\1: '${operator_version}'/g' -e 's/\("-version"\), "devel"/\1, '${operator_version}'/g' config/openshift/base/*.yaml
+  sed -i -e 's/\(operator.tekton.dev\/release\): "devel"/\1: '${operator_version}'/g' -e 's/\(app.kubernetes.io\/version\): "devel"/\1: '${operator_version}'/g' -e 's/\(version\): "devel"/\1: '${operator_version}'/g' -e 's/\("-version"\), "devel"/\1, '${operator_version}'/g' config/openshift/overlays/default/*.yaml
 }
 
 # Reset ${OPERATOR_MIDSTREAM_BRANCH} to upstream/${OPERATOR_UPSTREAM_BRANCH}.
@@ -72,6 +81,9 @@ get_buildah_task
 # TODO: move all addons into tekton-addon witout the version subdirectory
 copy_static_addon_resources 1.5.0 ${RHOSP_VERSION}
 
+# set operator version in operator resources
+set_version_label ${RHOSP_VERSION}
+
 # generate csv
 BUNDLE_ARGS="--workspace operatorhub/openshift \
              --operator-release-version ${RHOSP_VERSION} \
@@ -84,8 +96,6 @@ BUNDLE_ARGS="--workspace operatorhub/openshift \
 
 make operator-bundle
 
-git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata operatorhub/openshift
+git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata operatorhub/openshift config
 git commit -m ":open_file_folder: Update openshift specific files."
-
 git push -f ${OPENSHIFT_REMOTE} ${OPERATOR_MIDSTREAM_BRANCH}
-
