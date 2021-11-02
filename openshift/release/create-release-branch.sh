@@ -58,6 +58,18 @@ function set_version_label() {
   sed -i -e 's/\(operator.tekton.dev\/release\): "devel"/\1: '${operator_version}'/g' -e 's/\(app.kubernetes.io\/version\): "devel"/\1: '${operator_version}'/g' -e 's/\(version\): "devel"/\1: '${operator_version}'/g' -e 's/\("-version"\), "devel"/\1, '${operator_version}'/g' config/openshift/overlays/default/*.yaml
 }
 
+# add release specific patches
+function apply_patches() {
+  mkdir -p openshift/patches || true
+  cp -r patches/* openshift/patches/
+  if [[ -d openshift/patches ]];then
+      for f in openshift/patches/*.patch;do
+          [[ -f ${f} ]] || continue
+          git am ${f}
+      done
+  fi
+}
+
 # Reset ${OPERATOR_MIDSTREAM_BRANCH} to upstream/${OPERATOR_UPSTREAM_BRANCH}.
 git fetch upstream ${OPERATOR_UPSTREAM_BRANCH}
 git checkout upstream/${OPERATOR_UPSTREAM_BRANCH} --no-track -B ${OPERATOR_MIDSTREAM_BRANCH}
@@ -84,8 +96,13 @@ copy_static_addon_resources 1.5.0 ${RHOSP_VERSION}
 # set operator version in operator resources
 set_version_label ${RHOSP_VERSION}
 
+git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata config operatorhub/openshift
+git commit -m ":open_file_folder: Update openshift specific files."
+
+apply_patches
+
 # generate csv
-BUNDLE_ARGS="--workspace operatorhub/openshift \
+export BUNDLE_ARGS="--workspace operatorhub/openshift \
              --operator-release-version ${RHOSP_VERSION} \
              --channels stable,preview \
              --default-channel stable \
@@ -96,6 +113,7 @@ BUNDLE_ARGS="--workspace operatorhub/openshift \
 
 make operator-bundle
 
-git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata operatorhub/openshift config
-git commit -m ":open_file_folder: Update openshift specific files."
+git add openshift OWNERS_ALIASES OWNERS cmd/openshift/operator/kodata config operatorhub/openshift
+git commit -m ":open_file_folder: Update openshift operator bundle."
+
 git push -f ${OPENSHIFT_REMOTE} ${OPERATOR_MIDSTREAM_BRANCH}

@@ -1,0 +1,51 @@
+From 81db17ac41b0cf424e8567b37d69fba84c7d6e6c Mon Sep 17 00:00:00 2001
+From: Vincent Demeester <vdemeest@redhat.com>
+Date: Fri, 29 Oct 2021 08:35:52 +0200
+Subject: [PATCH] Updates webhook cluster role to work with Owner References
+
+Backport tektoncd/pipeline#4269 to fix deployment of the
+webhook on OpenShift.
+
+Signed-off-by: Vincent Demeester <vdemeest@redhat.com>
+---
+ .../kodata/tekton-pipeline/0.28.2/00-pipelines.yaml    | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/cmd/openshift/operator/kodata/tekton-pipeline/0.28.2/00-pipelines.yaml b/cmd/openshift/operator/kodata/tekton-pipeline/0.28.2/00-pipelines.yaml
+index 206ea5d8..1b7aa759 100644
+--- a/cmd/openshift/operator/kodata/tekton-pipeline/0.28.2/00-pipelines.yaml
++++ b/cmd/openshift/operator/kodata/tekton-pipeline/0.28.2/00-pipelines.yaml
+@@ -157,7 +157,7 @@ rules:
+     resourceNames: ["webhook.pipeline.tekton.dev"]
+     # When there are changes to the configs or secrets, knative updates the mutatingwebhook config
+     # with the updated certificates or the refreshed set of rules.
+-    verbs: ["get", "update"]
++    verbs: ["get", "update", "delete"]
+   - apiGroups: ["admissionregistration.k8s.io"]
+     resources: ["validatingwebhookconfigurations"]
+     # validation.webhook.pipeline.tekton.dev performs schema validation when you, for example, create TaskRuns.
+@@ -165,7 +165,7 @@ rules:
+     resourceNames: ["validation.webhook.pipeline.tekton.dev", "config.webhook.pipeline.tekton.dev"]
+     # When there are changes to the configs or secrets, knative updates the validatingwebhook config
+     # with the updated certificates or the refreshed set of rules.
+-    verbs: ["get", "update"]
++    verbs: ["get", "update", "delete"]
+   - apiGroups: ["policy"]
+     resources: ["podsecuritypolicies"]
+     resourceNames: ["tekton-pipelines"]
+@@ -176,6 +176,12 @@ rules:
+     # The webhook configured the namespace as the OwnerRef on various cluster-scoped resources,
+     # which requires we can Get the system namespace.
+     resourceNames: ["tekton-pipelines"]
++  - apiGroups: [""]
++    resources: ["namespaces/finalizers"]
++    verbs: ["update"]
++    # The webhook configured the namespace as the OwnerRef on various cluster-scoped resources,
++    # which requires we can update the system namespace finalizers.
++    resourceNames: ["tekton-pipelines"]
+ 
+ ---
+ # Copyright 2020 The Tekton Authors
+-- 
+2.31.1
+
