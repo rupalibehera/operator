@@ -15,21 +15,38 @@ CATALOG_RELEASE_BRANCH=${CATALOG_RELEASE_BRANCH:-release-next} #release-v0.24
 RHOSP_VERSION=${RHOSP_VERSION:-1.6.0} # we need to keep this constant for now as, we cannot push generated csv on a daily basis (NT)
 RHOSP_PREVIOUS_VERSION=${RHOSP_PREVIOUS_VERSION:-1.5.2}
 OLM_SKIP_RANGE=${OLM_SKIP_RANGE:-\'>=1.5.0 <1.6.0\'}
+LOCALLY_MANAGED_CLUSTERTASKS=(buildah openshift-client)
 
-function get_buildah_task() {
-# The fetch task script will not pull buildah task from github repository
-# as we have have made modifications in the buildah task in operator repository
-# This function will preserve the buildah task from the previous release (clusterTask payload)
-    buildah_dest_dir="cmd/openshift/operator/kodata/tekton-addon/${RHOSP_VERSION}/addons/02-clustertasks/buildah"
-    mkdir -p ${buildah_dest_dir} || true
-    task_path=${buildah_dest_dir}/buildah-task.yaml
+function get_locally_managed_tasks() {
+  # The fetch task script will not pull LOCALLY_MANAGED_CLUSTERTASKS tasks task from github repository
+  # as we have have made modifications in these tasks in operator repository
+  # This function will preserve these tasks from the previous release (clusterTask payload)
+
+  src_dir="cmd/openshift/operator/kodata/tekton-addon/1.5.0/addons/02-clustertasks"
+  dest_dir="cmd/openshift/operator/kodata/tekton-addon/${RHOSP_VERSION}/addons/02-clustertasks"
+  echo $dest_dir
+  for ct in ${LOCALLY_MANAGED_CLUSTERTASKS[*]}; do
+    echo "copying clustertask: $ct"
+
+    ct_src_dir=${src_dir}/${ct}
+    ct_dest_dir=${dest_dir}/${ct}
+    mkdir -p ${ct_dest_dir} || true
+
+    ct_filename=${ct}-task.yaml
+    ct_src_filepath=${ct_src_dir}/${ct_filename}
+    ct_dest_filepath=${ct_dest_dir}/${ct_filename}
+
+    cp ${ct_src_filepath} ${ct_dest_filepath}
+
     version_suffix="${RHOSP_VERSION//./-}"
-    task_version_path=${buildah_dest_dir}/buildah-${version_suffix}-task.yaml
+    ct_versioned_filename=${ct}-${version_suffix}-task.yaml
+    ct_versioned_dest_filepath=${ct_dest_dir}/${ct_versioned_filename}
 
-    cp -r cmd/openshift/operator/kodata/tekton-addon/1.5.0/addons/02-clustertasks/buildah/buildah-task.yaml ${buildah_dest_dir}
+    # create clustertask copy with versioned clustertask name (eg: name: buildah-1-6-0 from name: buildah)
     sed \
-        -e "s|^\(\s\+name:\)\s\+\(buildah\)|\1 \2-$RHOSP_VERSION|g"  \
-        $task_path  > "$task_version_path"
+        -e "s|^\(\s\+name:\)\s\+\("${ct}"\)|\1 \2-$RHOSP_VERSION|g"  \
+        ${ct_dest_filepath}  > "${ct_versioned_dest_filepath}"
+  done
 }
 
 # copy all addon other than clustertasks into the nightly addon payload directory
@@ -83,8 +100,9 @@ make get-releases TARGET='openshift' \
                   PIPELINES=${PIPELINE_VERSION} \
                   TRIGGERS=${TRIGGERS_VERSION}
 
-# handle buildah task separately
-get_buildah_task
+# copy locally managed tasks (eg: buildah, openshift-client)
+get_locally_managed_tasks
+
 # pull tasks
 ./hack/openshift/update-tasks.sh ${CATALOG_RELEASE_BRANCH} cmd/openshift/operator/kodata/tekton-addon/${RHOSP_VERSION} ${RHOSP_VERSION}
 
