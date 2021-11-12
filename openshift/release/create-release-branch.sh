@@ -78,7 +78,6 @@ function set_version_label() {
 # add release specific patches
 function apply_patches() {
   mkdir -p openshift/patches || true
-  cp -r patches/* openshift/patches/
   if [[ -d openshift/patches ]];then
       for f in openshift/patches/*.patch;do
           [[ -f ${f} ]] || continue
