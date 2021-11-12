@@ -1,0 +1,25 @@
+From 76b6e63339a3f336d65e219983d2d8f1b5be97c8 Mon Sep 17 00:00:00 2001
+From: savitaashture <sashture@redhat.com>
+Date: Fri, 12 Nov 2021 12:41:40 +0530
+Subject: [PATCH] update el-security-context flag to false
+
+---
+ .../operator/kodata/tekton-trigger/0.16.1/00-triggers.yaml      | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cmd/openshift/operator/kodata/tekton-trigger/0.16.1/00-triggers.yaml b/cmd/openshift/operator/kodata/tekton-trigger/0.16.1/00-triggers.yaml
+index 0ad6934e..1f21195e 100644
+--- a/cmd/openshift/operator/kodata/tekton-trigger/0.16.1/00-triggers.yaml
++++ b/cmd/openshift/operator/kodata/tekton-trigger/0.16.1/00-triggers.yaml
+@@ -1359,7 +1359,7 @@ spec:
+       containers:
+         - name: tekton-triggers-controller
+           image: "gcr.io/tekton-releases/github.com/tektoncd/triggers/cmd/controller:v0.16.1@sha256:ef5f79dcc8c1962279b95857d34e27d44670990dfb71ac3c481e277f376d9c78"
+-          args: ["-logtostderr", "-stderrthreshold", "INFO", "-el-image", "gcr.io/tekton-releases/github.com/tektoncd/triggers/cmd/eventlistenersink:v0.16.1@sha256:6e553c9067301509f6d4f71e5d173b42438741c82db524b0b00db994e92c87d0", "-el-port", "8080", "-el-security-context=true", "-el-readtimeout", "5", "-el-writetimeout", "40", "-el-idletimeout", "120", "-el-timeouthandler", "30", "-period-seconds", "10", "-failure-threshold", "1"]
++          args: ["-logtostderr", "-stderrthreshold", "INFO", "-el-image", "gcr.io/tekton-releases/github.com/tektoncd/triggers/cmd/eventlistenersink:v0.16.1@sha256:6e553c9067301509f6d4f71e5d173b42438741c82db524b0b00db994e92c87d0", "-el-port", "8080", "-el-security-context=false", "-el-readtimeout", "5", "-el-writetimeout", "40", "-el-idletimeout", "120", "-el-timeouthandler", "30", "-period-seconds", "10", "-failure-threshold", "1"]
+           env:
+             - name: SYSTEM_NAMESPACE
+               valueFrom:
+-- 
+2.31.1
+
