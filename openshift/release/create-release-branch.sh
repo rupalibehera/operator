@@ -44,7 +44,7 @@ function get_locally_managed_tasks() {
 
     # create clustertask copy with versioned clustertask name (eg: name: buildah-1-6-0 from name: buildah)
     sed \
-        -e "s|^\(\s\+name:\)\s\+\("${ct}"\)|\1 \2-$RHOSP_VERSION|g"  \
+        -e "s|^\(\s\+name:\)\s\+\("${ct}"\)|\1 \2-${version_suffix}|g"  \
         ${ct_dest_filepath}  > "${ct_versioned_dest_filepath}"
   done
 }
