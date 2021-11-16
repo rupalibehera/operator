@@ -66,6 +66,36 @@ spec:
                 # Launch script
                 [ -d .bin ] || mkdir .bin
                 openshift/release/update-to-head.sh
+    finally:
+      - name: finally
+        taskSpec:
+          steps:
+            - name: send-to-slack
+              env:
+                - name: SLACK_WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: slack-tektoncd-operator-ci-webhook
+                      key: hook_url
+                - name: PIPELINERUN
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['tekton.dev/pipelineRun']
+                - name: LABEL_TO_CHECK
+                  value: "nightly-ci"
+                - name: SUCCESS_URL_ICON
+                  value: "https://github.com/tektoncd.png"
+                - name: FAILURE_URL_ICON
+                  value: "https://user-images.githubusercontent.com/4288561/114842214-eecf6c80-9dd8-11eb-8924-86288b1a501c.jpeg"
+                - name: SUCCESS_SUBJECT
+                  value: "Tektoncd Operator CI nightly sync with upstream ran successfully  :pipelines: :dance_cat: :yay2:"
+                - name: FAILURE_SUBJECT
+                  value: "Tektoncd Operator CI nightly sync with upstream has failed :pipeline: :sadparrot: :failed:"
+                - name: LOG_URL
+                  value: "https://console-openshift-console.apps.cicd.tekton.codereadyqe.com/k8s/ns/nightly-ci/tekton.dev~v1beta1~PipelineRun/pipelines-operator-nightly"
+
+              image: quay.io/chmouel/tekton-asa-code:latest
+              command: [ "/code/misc/send-slack-notifications.py" ]
   workspaces:
     - name: source
       volumeClaimTemplate:
