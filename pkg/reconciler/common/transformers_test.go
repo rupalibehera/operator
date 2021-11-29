@@ -335,16 +335,28 @@ func TestReplaceNamespaceInDeploymentEnv(t *testing.T) {
 	manifest, err := mf.ManifestFrom(mf.Recursive(testData))
 	assertNoEror(t, err)
 
-	manifest, err = manifest.Transform(ReplaceNamespaceInDeploymentEnv("openshift-pipelines"))
+	expectedTestData := path.Join("testdata", "test-replace-env-in-result-deployment-transformed.yaml")
+	expectedManifest, err := mf.ManifestFrom(mf.Recursive(expectedTestData))
 	assertNoEror(t, err)
 
-	d := &appsv1.Deployment{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.Resources()[0].Object, d)
+	transformedManifest, err := manifest.Transform(ReplaceNamespaceInDeploymentEnv("openshift-pipelines"))
 	assertNoEror(t, err)
 
-	env := d.Spec.Template.Spec.Containers[0].Env
-	assert.Equal(t, env[0].Value, "tcp")
-	assert.Equal(t, env[1].Value, "tekton-results-mysql.openshift-pipelines.svc.cluster.local")
+	transformed := &appsv1.Deployment{}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(transformedManifest.Resources()[0].Object, transformed)
+	if err != nil {
+		t.Errorf("failed to load deployment yaml")
+	}
+
+	expected := &appsv1.Deployment{}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(expectedManifest.Resources()[0].Object, expected)
+	if err != nil {
+		t.Errorf("failed to load deployment yaml")
+	}
+
+	if d := cmp.Diff(expected, transformed); d != "" {
+		t.Errorf("failed to replace namespace in env %s", diff.PrintWantGot(d))
+	}
 }
 
 func TestReplaceNamespaceInDeploymentArgs(t *testing.T) {
