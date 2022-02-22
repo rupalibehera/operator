@@ -129,7 +129,7 @@ func Prune(ctx context.Context, k kubernetes.Interface, tC *v1alpha1.TektonConfi
 	}
 	if pruningNamespaces.commonScheduleNs != nil && len(pruningNamespaces.commonScheduleNs) > 0 {
 		jobs := pruner.createAllJobContainers(pruningNamespaces.commonScheduleNs)
-		if err := pruner.checkAndCreate(ctx, "", tC.Spec.Pruner.Schedule, jobs, pruneCronLabel, pruningNamespaces.configChanged); err != nil {
+		if err := pruner.checkAndCreate(ctx, "", tC.Spec.Pruner.Schedule, jobs, pruneCronLabel, pruningNamespaces.configChanged,tC); err != nil {
 			logger.Error("failed to create cronjob ", err)
 		}
 	}
@@ -138,7 +138,7 @@ func Prune(ctx context.Context, k kubernetes.Interface, tC *v1alpha1.TektonConfi
 		for ns, con := range pruningNamespaces.uniqueScheduleNS {
 			jobs := pruner.createJobContainers(con, ns)
 			listOpt := pruneCronNsLabel + "=" + ns
-			if err := pruner.checkAndCreate(ctx, ns, con.config.Schedule, jobs, listOpt, pruningNamespaces.configChanged); err != nil {
+			if err := pruner.checkAndCreate(ctx, ns, con.config.Schedule, jobs, listOpt, pruningNamespaces.configChanged,tC); err != nil {
 				logger.Error("failed to create cronjob ", err)
 			}
 		}
@@ -266,7 +266,7 @@ func (pruner *Pruner) createJobContainers(nsConfig *pruneConfigPerNS, ns string)
 	return containers
 }
 
-func (pruner *Pruner) checkAndCreate(ctx context.Context, uniquePruneNs, schedule string, pruneContainers []corev1.Container, listOpt string, configChanged bool) error {
+func (pruner *Pruner) checkAndCreate(ctx context.Context, uniquePruneNs, schedule string, pruneContainers []corev1.Container, listOpt string, configChanged bool, tC *v1alpha1.TektonConfig) error {
 	suffixedCronName := SimpleNameGenerator.RestrictLengthWithRandomSuffix(CronName)
 	cronList, err := pruner.listCronJobs(ctx, pruner.targetNamespace, listOpt)
 	if err != nil {
@@ -279,22 +279,40 @@ func (pruner *Pruner) checkAndCreate(ctx context.Context, uniquePruneNs, schedul
 				return err
 			}
 		}
-		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef)
+		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef,tC)
 	}
 
 	// no change in config but the cronjob does not exist
 	if len(cronList.Items) == 0 && !configChanged {
-		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef)
+		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef,tC)
 	}
 
 	// any case with config change
 	if configChanged {
-		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef)
+		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef,tC)
 	}
 	return nil
 }
+func getPodSpec(pruneContainers []corev1.Container, tC *v1alpha1.TektonConfig ) corev1.PodSpec{
+	platform := os.Getenv("TARGET")
+	if platform == "openshift" {
+		return corev1.PodSpec{
+			Containers:         pruneContainers,
+			RestartPolicy:      "OnFailure",
+			ServiceAccountName: tektonSA,
+			NodeSelector: tC.Spec.Config.NodeSelector,
+			Tolerations: tC.Spec.Config.Tolerations,
+	}
+	}else {
+		return corev1.PodSpec{
+			Containers:         pruneContainers,
+			RestartPolicy:      "OnFailure",
+			ServiceAccountName: tektonSA,
+		}
+	}
+}
 
-func createCronJob(ctx context.Context, kc kubernetes.Interface, cronName, targetNs, pruneNs, schedule string, pruneContainers []corev1.Container, oR v1.OwnerReference) error {
+func createCronJob(ctx context.Context, kc kubernetes.Interface, cronName, targetNs, pruneNs, schedule string, pruneContainers []corev1.Container, oR v1.OwnerReference, tC *v1alpha1.TektonConfig) error {
 	backOffLimit := int32(3)
 	ttlSecondsAfterFinished := int32(3600)
 	cj := &batchv1.CronJob{
@@ -317,11 +335,7 @@ func createCronJob(ctx context.Context, kc kubernetes.Interface, cronName, targe
 					BackoffLimit:            &backOffLimit,
 
 					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers:         pruneContainers,
-							RestartPolicy:      "OnFailure",
-							ServiceAccountName: tektonSA,
-						},
+						Spec: getPodSpec(pruneContainers, tC),
 					},
 				},
 			},
