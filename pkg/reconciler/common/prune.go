@@ -295,6 +295,10 @@ func (pruner *Pruner) checkAndCreate(ctx context.Context, uniquePruneNs, schedul
 }
 func getPodSpec(pruneContainers []corev1.Container, tC *v1alpha1.TektonConfig ) corev1.PodSpec{
 	platform := os.Getenv("TARGET")
+	fmt.Println("IN Pruner")
+	fmt.Println("-------------------")
+	fmt.Println(tC.Spec.Config)
+	fmt.Println("-------------------")
 	if platform == "openshift" {
 		return corev1.PodSpec{
 			Containers:         pruneContainers,
