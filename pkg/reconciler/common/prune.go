@@ -251,7 +251,8 @@ func (pruner *Pruner) createAllJobContainers(nsConfig map[string]*pruneConfigPer
 
 func (pruner *Pruner) createJobContainers(nsConfig *pruneConfigPerNS, ns string) []corev1.Container {
 	var containers []corev1.Container
-
+	fmt.Println("^^^^^^^^^^^^^^^^^^^^^")
+	fmt.Println("In createJobContainers")
 	cmdArgs := pruneCommand(nsConfig, ns)
 	containerName := SimpleNameGenerator.RestrictLengthWithRandomSuffix("pruner-tkn-" + ns)
 	container := corev1.Container{
@@ -267,6 +268,11 @@ func (pruner *Pruner) createJobContainers(nsConfig *pruneConfigPerNS, ns string)
 }
 
 func (pruner *Pruner) checkAndCreate(ctx context.Context, uniquePruneNs, schedule string, pruneContainers []corev1.Container, listOpt string, configChanged bool, tC *v1alpha1.TektonConfig) error {
+	fmt.Println("In check and create")
+	computeTcHash, err := hash.Compute(tC.Spec.Config)
+	if err != nil {
+		return err
+	}
 	suffixedCronName := SimpleNameGenerator.RestrictLengthWithRandomSuffix(CronName)
 	cronList, err := pruner.listCronJobs(ctx, pruner.targetNamespace, listOpt)
 	if err != nil {
@@ -279,27 +285,48 @@ func (pruner *Pruner) checkAndCreate(ctx context.Context, uniquePruneNs, schedul
 				return err
 			}
 		}
+		fmt.Println("@@@@@@@@@@@@@@@")
+		fmt.Println("1")
 		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef,tC)
 	}
 
 	// no change in config but the cronjob does not exist
 	if len(cronList.Items) == 0 && !configChanged {
+		fmt.Println("@@@@@@@@@@@@@@@")
+		fmt.Println("2")
 		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef,tC)
 	}
 
 	// any case with config change
 	if configChanged {
+		fmt.Println("@@@@@@@@@@@@@@@")
+		fmt.Println("3")
 		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef,tC)
 	}
+	// if there is change in tC.Spec.Config
+	tektonConfigSpecChange, err := checkTektonConfigSpecChange(computeTcHash, tC)
+	if err != nil {
+		return err
+	}
+	fmt.Println("/////////////////")
+	fmt.Println(tektonConfigSpecChange)
+	if tektonConfigSpecChange {
+		fmt.Println("@@@@@@@@@@@@@@@")
+		fmt.Println("4")
+		return createCronJob(ctx, pruner.kc, suffixedCronName, pruner.targetNamespace, uniquePruneNs, schedule, pruneContainers, pruner.ownerRef,tC)
+	}
+	fmt.Println("end")
 	return nil
 }
 func getPodSpec(pruneContainers []corev1.Container, tC *v1alpha1.TektonConfig ) corev1.PodSpec{
-	platform := os.Getenv("TARGET")
+	targetNamespace := tC.Spec.TargetNamespace
 	fmt.Println("IN Pruner")
 	fmt.Println("-------------------")
-	fmt.Println(tC.Spec.Config)
+	fmt.Println(targetNamespace)
+	fmt.Println("!!!!!!!!!!!!!!!!!!")
+	fmt.Println(tC.Spec)
 	fmt.Println("-------------------")
-	if platform == "openshift" {
+	if targetNamespace == "openshift-pipelines" {
 		return corev1.PodSpec{
 			Containers:         pruneContainers,
 			RestartPolicy:      "OnFailure",
@@ -483,6 +510,16 @@ func checkConfigChangeUpdateHashInNamespace(ctx context.Context, k kubernetes.In
 		annotations[pruneLastAppliedHash] = currentComputedHash
 		ns.SetAnnotations(annotations)
 		_, err := k.CoreV1().Namespaces().Update(ctx, ns, v1.UpdateOptions{})
+		return changed, err
+	}
+	return unchanged, nil
+}
+func checkTektonConfigSpecChange(previousTcConfigHash string, tC *v1alpha1.TektonConfig) (bool, error) {
+	fmt.Println("######################")
+	currentTcSpecHash, err := hash.Compute(tC.Spec.Config)
+	fmt.Printf("current spec has %s\n", currentTcSpecHash)
+	fmt.Printf("previous spec has %s\n", previousTcConfigHash)
+	if currentTcSpecHash != previousTcConfigHash{
 		return changed, err
 	}
 	return unchanged, nil

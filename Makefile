@@ -36,7 +36,7 @@ TEKTON_DASHBOARD_VERSION ?= latest
 TEKTON_RESULTS_VERSION ?= v0.4.0 # latest returns an older version hence hard coding to v0.3.1 for now (tektoncd/results#138)
 PAC_VERSION ?= 0.5.2
 
-$(BIN)/ko: PACKAGE=github.com/google/ko/cmd/ko
+$(BIN)/ko: PACKAGE=github.com/google/ko
 
 KUSTOMIZE = $(or ${KUSTOMIZE_BIN},${KUSTOMIZE_BIN},$(BIN)/kustomize)
 $(BIN)/kustomize: | $(BIN) ; $(info $(M) getting kustomize)
@@ -94,7 +94,7 @@ get-releases: |
 apply: | $(KO) $(KUSTOMIZE) get-releases ; $(info $(M) ko apply on $(TARGET)) @ ## Apply config to the current cluster
 	@ ## --load-restrictor LoadRestrictionsNone is needed in kustomize build as files which not in child tree of kustomize base are pulled
 	@ ## https://github.com/kubernetes-sigs/kustomize/issues/766
-	$Q $(KUSTOMIZE) build --load-restrictor LoadRestrictionsNone config/$(TARGET)/overlays/default | $(KO) apply $(PLATFORM) -f -
+	$Q $(KUSTOMIZE) build --load-restrictor LoadRestrictionsNone config/$(TARGET)/overlays/default | $(KO) apply $(PLATFORM) --preserve-media-type=true -f -
 
 .PHONY: apply-cr
 apply-cr: | ; $(info $(M) apply CRs on $(TARGET)) @ ## Apply the CRs to the current cluster

@@ -292,10 +292,21 @@ func getMiscellaneousManifest(ctx context.Context, addon *v1alpha1.TektonAddon, 
 	}
 
 	images := common.ToLowerCaseKeys(common.ImagesFromEnv(common.AddonsImagePrefix))
+	fmt.Println("IN addon extension")
+	fmt.Println("******************")
+	fmt.Println(addon.Spec)
+	//{{openshift-pipelines} {[{clusterTasks true} {pipelineTemplates true}] 0xc000b23c50} {map[] []}
+	//{{openshift-pipelines} {[{clusterTasks true} {pipelineTemplates true}] 0xc001b20448} {map[node-role.kubernetes.io/master:] [{node-role.kubernetes.io/master Exists  NoSchedule <nil>}]}}
+	fmt.Println("******************")
 	extraTranformers := []mf.Transformer{
 		common.DeploymentImages(images),
 		common.AddConfiguration(addon.Spec.Config),
 	}
+	fmt.Println("################")
+	fmt.Println(addon.Spec)
+	fmt.Println(addon.Spec.Config)
+	//{{openshift-pipelines} {[{clusterTasks true} {pipelineTemplates true}] 0xc000b23c50} {map[] []}
+	fmt.Println("################")
 	if err := addonTransform(ctx, &miscellaneousManifest, addon, extraTranformers...); err != nil {
 		return mf.Manifest{}, err
 	}
