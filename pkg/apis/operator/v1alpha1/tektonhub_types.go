@@ -58,9 +58,10 @@ type DbSpec struct {
 }
 
 type ApiSpec struct {
-	HubConfigUrl  string `json:"hubConfigUrl,omitempty"`
-	ApiSecretName string `json:"secret,omitempty"`
-	RouteHostUrl  string `json:"routeHostUrl,omitempty"`
+	HubConfigUrl    string `json:"hubConfigUrl,omitempty"`
+	ApiSecretName   string `json:"secret,omitempty"`
+	RouteHostUrl    string `json:"routeHostUrl,omitempty"`
+	RefreshInterval string `json:"refreshInterval,omitempty"`
 }
 
 // TektonHubStatus defines the observed state of TektonHub
