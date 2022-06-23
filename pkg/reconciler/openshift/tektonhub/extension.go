@@ -392,7 +392,6 @@ func UpdateDbDeployment() mf.Transformer {
 
 		if d.Name == db {
 			env := d.Spec.Template.Spec.Containers[0].Env
-
 			replaceEnv(env)
 
 			d.Spec.Template.Spec.Containers[0].Env = env

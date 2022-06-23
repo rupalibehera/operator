@@ -20,7 +20,11 @@ package tektonhub
 import (
 	"context"
 	"fmt"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"path/filepath"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -475,11 +479,17 @@ func (r *Reconciler) getManifest(ctx context.Context, th *v1alpha1.TektonHub, ma
 	if err := common.AppendManifest(&manifest, manifestLocation); err != nil {
 		return nil, err
 	}
-
-	transformedManifest, err := r.transform(ctx, manifest, th)
-	if err != nil {
+	if strings.Contains(manifestLocation,"api") }
+		transformedManifest, err := r.transform(ctx, manifest, th, "api")
+		if err != nil {
 		return nil, err
-	}
+		}
+	}else{
+		transformedManifest, err := r.transform(ctx, manifest, th)
+		if err != nil {
+		return nil, err
+		}
+}
 
 	return transformedManifest, nil
 }
@@ -505,6 +515,31 @@ func (r *Reconciler) transform(ctx context.Context, manifest mf.Manifest, th *v1
 	}
 
 	return &manifest, nil
+}
+// check how to call this
+func UpdateEnvDeployment(refreshInterval corev1.EnvVar) mf.Transformer {
+	return func(u *unstructured.Unstructured) error {
+		if u.GetKind() != "Deployment" {
+			return nil
+		}
+
+		d := &appsv1.Deployment{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, d)
+		if err != nil {
+			return err
+		}
+
+		env := d.Spec.Template.Spec.Containers[0].Env
+		updatedEnv := append(env,refreshInterval)
+		d.Spec.Template.Spec.Containers[0].Env = updatedEnv
+		unstrObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(d)
+		if err != nil {
+			return err
+		}
+		u.SetUnstructuredContent(unstrObj)
+
+		return nil
+	}
 }
 
 // TODO: remove this after operator openshift-build version 1.8
